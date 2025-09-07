@@ -27,29 +27,8 @@ jobs:
       
       - name: Install Google Chrome for Selenium
         uses: browser-actions/setup-chrome@latest
-
-      # --- START OF DEBUGGING STEPS ---
-      - name: 1. Verify Secret is not Empty
-        # This checks the character count of the secret. It should be > 0.
-        run: echo "Secret character count is ${{ env.SECRET_LENGTH }}"
-        env:
-          SECRET_LENGTH: ${{ join(secrets.GDRIVE_SERVICE_ACCOUNT_KEY, '') | length }}
-          
-      - name: 2. Create Service Account Key File
-        # Use printf for robust writing of the secret to a file.
-        run: printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}" > service_secrets.json
-
-      - name: 3. List files in the directory
-        # This will prove that service_secrets.json was created.
-        run: ls -l
-
-      - name: 4. Display content of secrets file
-        # THIS IS THE MOST IMPORTANT STEP. It shows us if the file content is a valid JSON.
-        run: cat service_secrets.json
-      # --- END OF DEBUGGING STEPS ---
         
-      - name: 5. Run the Python Scraper Script
-        # Pass the secret to the script as an environment variable, which is safer.
+      - name: Run the Python Scraper Script
         env:
           GDRIVE_SA_KEY: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}
         run: python scraper.py "${{ github.event.inputs.company_code }}" "${{ github.event.inputs.start_date }}"
