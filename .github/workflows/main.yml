@@ -30,8 +30,8 @@ jobs:
         uses: browser-actions/setup-chrome@latest
 
       - name: Create Service Account Key File from Secret
-        # This is the corrected step
-        run: echo "${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}" > service_secrets.json
+        # This uses the more reliable 'printf' to avoid formatting errors
+        run: printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}" > service_secrets.json
         
       - name: Run the Python Scraper Script
         run: python scraper.py "${{ github.event.inputs.company_code }}" "${{ github.event.inputs.start_date }}"
