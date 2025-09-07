@@ -11,22 +11,35 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+
+# --- IMPORTS FOR GOOGLE DRIVE ---
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
+# New, specific import for service account credentials
+from google.oauth2.service_account import Credentials
+
 
 def authenticate_google_drive():
-    """Authenticates using a service account credentials file."""
+    """
+    Authenticates using a service account JSON key file and returns an
+    authorized GoogleDrive instance. This is the correct method for server environments.
+    """
     gauth = GoogleAuth()
-    # Designates service account authentication
-    gauth.auth_method = 'service'
-    # The JSON file containing the service account's private key
-    gauth.credentials_file = "service_secrets.json"
+    scope = ["https://www.googleapis.com/auth/drive"]
+    key_file_path = "service_secrets.json"
+    
+    # Create a credentials object directly from the service account file.
+    creds = Credentials.from_service_account_file(key_file_path, scopes=scope)
+    gauth.credentials = creds
+    
     drive = GoogleDrive(gauth)
     return drive
 
+
 def get_or_create_folder(drive, folder_name, parent_folder_id):
+    """Checks for a folder by name inside a parent, creates it if not found, and returns its ID."""
     query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and title='{folder_name}' and trashed=false"
-    file_list = drive.ListFile({'q': query}).GetList()
+    file_list = drive.ListFile({'q': query, 'supportsAllDrives': True, 'includeItemsFromAllDrives': True}).GetList()
     if file_list:
         print(f"  - Found existing folder: '{folder_name}'")
         return file_list[0]['id']
@@ -34,21 +47,24 @@ def get_or_create_folder(drive, folder_name, parent_folder_id):
         print(f"  - Folder '{folder_name}' not found. Creating...")
         folder_metadata = {'title': folder_name, 'mimeType': 'application/vnd.google-apps.folder', 'parents': [{'id': parent_folder_id}]}
         folder = drive.CreateFile(folder_metadata)
-        folder.Upload()
+        folder.Upload(param={'supportsAllDrives': True})
         return folder['id']
 
 def upload_to_drive(drive, file_path, company_code, report_type):
+    """Uploads a local file to the nested folder structure: /CSE Reports/[company_code]/[report_type] Reports/"""
     print(f"\n  - Uploading to Google Drive path: /CSE Reports/{company_code}/{report_type} Reports")
     root_folder_id = get_or_create_folder(drive, "CSE Reports", "root")
     company_folder_id = get_or_create_folder(drive, company_code, root_folder_id)
     report_type_folder_name = f"{report_type} Reports"
     destination_folder_id = get_or_create_folder(drive, report_type_folder_name, company_folder_id)
+
     file_name = os.path.basename(file_path)
     drive_file = drive.CreateFile({'title': file_name, 'parents': [{'id': destination_folder_id}]})
     drive_file.SetContentFile(file_path)
-    drive_file.Upload()
+    drive_file.Upload(param={'supportsAllDrives': True})
     print(f"  - ✅ File '{file_name}' uploaded successfully.")
 
+# ... The rest of your functions (download_report, run_downloader) remain exactly the same ...
 def download_report(driver, wait, company_code, report_type, drive, start_date_str):
     try:
         print("-" * 40)
@@ -112,7 +128,6 @@ def run_downloader(company_code, start_date_str):
     except Exception as e:
         print(f"❌ Could not authenticate with Google Drive. Error: {e}")
         return
-
     base_url = "https://www.cse.lk/pages/company-profile/company-profile.component.html?symbol="
     chrome_options = Options()
     chrome_options.add_argument("--headless")
