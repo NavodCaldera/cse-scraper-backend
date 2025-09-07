@@ -11,39 +11,25 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import json
+import json # <-- Added this missing import
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
+from google.oauth2.service_account import Credentials # <-- Added this missing import
 
 def authenticate_google_drive():
-    """
-    Authenticates using service account credentials passed as an environment variable.
-    This method directly builds the required objects and is the most reliable for server use.
-    """
-    # 1. Get the secret JSON string from the environment variable set by GitHub Actions.
     creds_json_str = os.environ.get('GDRIVE_SA_KEY')
     if not creds_json_str:
-        raise ValueError("Critical Error: Google Drive secret (GDRIVE_SA_KEY) was not found in environment variables.")
-
-    # 2. Load the JSON string into a Python dictionary.
+        raise ValueError("Google Drive secret (GDRIVE_SA_KEY) not found in environment variables.")
     creds_info = json.loads(creds_json_str)
-    
-    # 3. Define the scope of permissions we need.
-    scope = ['https://www.googleapis.com/auth/drive']
-    
-    # 4. Create the credentials object directly from the dictionary.
-    # This is the standard, modern way to do it and avoids all PyDrive2 config file issues.
-    creds = Credentials.from_service_account_info(creds_info, scopes=scope)
-    
-    # 5. Initialize GoogleAuth with these explicit credentials and authorize.
     gauth = GoogleAuth()
+    scope = ["https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(creds_info, scopes=scope)
     gauth.credentials = creds
-    gauth.Authorize() # Service account credentials do not need to be refreshed.
-    
+    gauth.Authorize()
     drive = GoogleDrive(gauth)
     return drive
+
 def get_or_create_folder(drive, folder_name, parent_folder_id):
-    """Checks for a folder by name inside a parent, creates it if not found, and returns its ID."""
     query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and title='{folder_name}' and trashed=false"
     file_list = drive.ListFile({'q': query, 'supportsAllDrives': True, 'includeItemsFromAllDrives': True}).GetList()
     if file_list:
@@ -57,7 +43,6 @@ def get_or_create_folder(drive, folder_name, parent_folder_id):
         return folder['id']
 
 def upload_to_drive(drive, file_path, company_code, report_type):
-    """Uploads a local file to the nested folder structure: /CSE Reports/[company_code]/[report_type] Reports/"""
     print(f"\n  - Uploading to Google Drive path: /CSE Reports/{company_code}/{report_type} Reports")
     root_folder_id = get_or_create_folder(drive, "CSE Reports", "root")
     company_folder_id = get_or_create_folder(drive, company_code, root_folder_id)
