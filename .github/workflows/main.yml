@@ -27,11 +27,6 @@ jobs:
       
       - name: Install Google Chrome for Selenium
         uses: browser-actions/setup-chrome@latest
-
-      - name: Verify Secret is Loaded
-        run: |
-          echo "Testing the loaded secret..."
-          echo "${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}" | jq .type
         
       - name: Run the Python Scraper Script
         env:
