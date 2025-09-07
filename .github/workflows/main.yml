@@ -1,4 +1,3 @@
-# File: .github/workflows/main.yml
 name: CSE Scraper Workflow
 
 on:
@@ -28,10 +27,8 @@ jobs:
       
       - name: Install Google Chrome for Selenium
         uses: browser-actions/setup-chrome@latest
-
-      - name: Create Service Account Key File from Secret
-        # This uses the more reliable 'printf' to avoid formatting errors
-        run: printf '%s' "${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}" > service_secrets.json
         
       - name: Run the Python Scraper Script
+        env:
+          GDRIVE_SA_KEY: ${{ secrets.GDRIVE_SERVICE_ACCOUNT_KEY }}
         run: python scraper.py "${{ github.event.inputs.company_code }}" "${{ github.event.inputs.start_date }}"
