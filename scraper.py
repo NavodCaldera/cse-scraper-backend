@@ -14,21 +14,30 @@ import time
 import json
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
-from google.oauth2.service_account import Credentials
 
 def authenticate_google_drive():
-    creds_json_str = os.environ.get('GDRIVE_SA_KEY')
-    if not creds_json_str:
-        raise ValueError("Google Drive secret (GDRIVE_SA_KEY) not found in environment variables.")
-    creds_info = json.loads(creds_json_str)
-    gauth = GoogleAuth()
-    scope = ["https://www.googleapis.com/auth/drive"]
-    creds = Credentials.from_service_account_info(creds_info, scopes=scope)
-    gauth.credentials = creds
+    """
+    Handles service account authentication correctly for a server environment.
+    """
+    # Define settings to point to the service account key file and specify scopes.
+    settings = {
+        "client_config_backend": "file",
+        "client_config_file": "service_secrets.json",
+        "save_credentials": True,
+        "save_credentials_backend": "file",
+        "save_credentials_file": "credentials.dat",
+        "oauth_scope": ["https://www.googleapis.com/auth/drive"]
+    }
+    gauth = GoogleAuth(settings=settings)
+    
+    # Authenticate using the service account flow.
+    gauth.ServiceAuth()
+    
     drive = GoogleDrive(gauth)
     return drive
 
 def get_or_create_folder(drive, folder_name, parent_folder_id):
+    """Checks for a folder by name inside a parent, creates it if not found, and returns its ID."""
     query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and title='{folder_name}' and trashed=false"
     file_list = drive.ListFile({'q': query, 'supportsAllDrives': True, 'includeItemsFromAllDrives': True}).GetList()
     if file_list:
@@ -42,6 +51,7 @@ def get_or_create_folder(drive, folder_name, parent_folder_id):
         return folder['id']
 
 def upload_to_drive(drive, file_path, company_code, report_type):
+    """Uploads a local file to the nested folder structure: /CSE Reports/[company_code]/[report_type] Reports/"""
     print(f"\n  - Uploading to Google Drive path: /CSE Reports/{company_code}/{report_type} Reports")
     root_folder_id = get_or_create_folder(drive, "CSE Reports", "root")
     company_folder_id = get_or_create_folder(drive, company_code, root_folder_id)
