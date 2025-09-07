@@ -17,25 +17,31 @@ from pydrive2.drive import GoogleDrive
 
 def authenticate_google_drive():
     """
-    Handles service account authentication correctly for a server environment.
+    Authenticates using service account credentials passed as an environment variable.
+    This method directly builds the required objects and is the most reliable for server use.
     """
-    # Define settings to point to the service account key file and specify scopes.
-    settings = {
-        "client_config_backend": "file",
-        "client_config_file": "service_secrets.json",
-        "save_credentials": True,
-        "save_credentials_backend": "file",
-        "save_credentials_file": "credentials.dat",
-        "oauth_scope": ["https://www.googleapis.com/auth/drive"]
-    }
-    gauth = GoogleAuth(settings=settings)
+    # 1. Get the secret JSON string from the environment variable set by GitHub Actions.
+    creds_json_str = os.environ.get('GDRIVE_SA_KEY')
+    if not creds_json_str:
+        raise ValueError("Critical Error: Google Drive secret (GDRIVE_SA_KEY) was not found in environment variables.")
+
+    # 2. Load the JSON string into a Python dictionary.
+    creds_info = json.loads(creds_json_str)
     
-    # Authenticate using the service account flow.
-    gauth.ServiceAuth()
+    # 3. Define the scope of permissions we need.
+    scope = ['https://www.googleapis.com/auth/drive']
+    
+    # 4. Create the credentials object directly from the dictionary.
+    # This is the standard, modern way to do it and avoids all PyDrive2 config file issues.
+    creds = Credentials.from_service_account_info(creds_info, scopes=scope)
+    
+    # 5. Initialize GoogleAuth with these explicit credentials and authorize.
+    gauth = GoogleAuth()
+    gauth.credentials = creds
+    gauth.Authorize() # Service account credentials do not need to be refreshed.
     
     drive = GoogleDrive(gauth)
     return drive
-
 def get_or_create_folder(drive, folder_name, parent_folder_id):
     """Checks for a folder by name inside a parent, creates it if not found, and returns its ID."""
     query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and title='{folder_name}' and trashed=false"
