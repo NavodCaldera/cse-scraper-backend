@@ -11,40 +11,23 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
-import json # New import
-
-# --- IMPORTS FOR GOOGLE DRIVE ---
+import json
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
-from google.oauth2.service_account import Credentials # New import
+from google.oauth2.service_account import Credentials
 
 def authenticate_google_drive():
-    """
-    This is the definitive server-side authentication method.
-    It reads the service account key from an environment variable.
-    """
-    # 1. Read the secret JSON string from an environment variable
     creds_json_str = os.environ.get('GDRIVE_SA_KEY')
     if not creds_json_str:
-        raise ValueError("Critical Error: The GDRIVE_SA_KEY secret was not found in the environment.")
-
-    # 2. Convert the JSON string into a Python dictionary. This will fail if the JSON is malformed.
-    try:
-        creds_info = json.loads(creds_json_str)
-    except json.JSONDecodeError:
-        raise ValueError("Critical Error: The GDRIVE_SA_KEY secret is not a valid JSON string.")
-    
-    # 3. Use the dictionary to create credentials.
+        raise ValueError("Google Drive secret (GDRIVE_SA_KEY) not found in environment variables.")
+    creds_info = json.loads(creds_json_str)
     gauth = GoogleAuth()
     scope = ["https://www.googleapis.com/auth/drive"]
     creds = Credentials.from_service_account_info(creds_info, scopes=scope)
     gauth.credentials = creds
-    
-    # 4. Initialize and return the Drive object.
     drive = GoogleDrive(gauth)
     return drive
 
-# (All other functions below this line are correct and do not need changes)
 def get_or_create_folder(drive, folder_name, parent_folder_id):
     query = f"'{parent_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and title='{folder_name}' and trashed=false"
     file_list = drive.ListFile({'q': query, 'supportsAllDrives': True, 'includeItemsFromAllDrives': True}).GetList()
@@ -64,7 +47,6 @@ def upload_to_drive(drive, file_path, company_code, report_type):
     company_folder_id = get_or_create_folder(drive, company_code, root_folder_id)
     report_type_folder_name = f"{report_type} Reports"
     destination_folder_id = get_or_create_folder(drive, report_type_folder_name, company_folder_id)
-
     file_name = os.path.basename(file_path)
     drive_file = drive.CreateFile({'title': file_name, 'parents': [{'id': destination_folder_id}]})
     drive_file.SetContentFile(file_path)
@@ -98,7 +80,8 @@ def download_report(driver, wait, company_code, report_type, drive, start_date_s
             uploaded_date_str = columns[0].contents[0].strip()
             try:
                 date_obj = datetime.strptime(uploaded_date_str, '%d %b %Y')
-            except ValueError: continue 
+            except ValueError:
+                continue 
             if date_obj >= cutoff_date:
                 pdf_link_tag = report_row.find('a', href=lambda href: href and href.endswith('.pdf'))
                 if not pdf_link_tag: continue
