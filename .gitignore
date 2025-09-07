@@ -1,0 +1,9 @@
+# Virtual Environment
+.venv/
+__pycache__/
+temp_reports/
+
+# Secrets - DO NOT UPLOAD THESE
+credentials.json
+creds.txt
+settings.yaml
