@@ -1,0 +1,43 @@
+# File: .github/workflows/main.yml
+name: CSE Scraper Workflow
+
+# This 'workflow_dispatch' event is KEY. 
+# It allows us to trigger this workflow from an external API call.
+on:
+  workflow_dispatch:
+    # We define the inputs our API will provide
+    inputs:
+      company_code:
+        description: 'Company stock symbol (e.g., HNB.N0000)'
+        required: true
+      start_date:
+        description: 'Start date (YYYY-MM-DD)'
+        required: true
+
+jobs:
+  scrape-and-upload:
+    runs-on: ubuntu-latest # The job will run on a fresh Linux server
+    steps:
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Install Google Chrome for Selenium
+        uses: browser-actions/setup-chrome@latest
+
+      - name: Create credentials.json from secret
+        run: echo "${{ secrets.GDRIVE_CREDS_JSON }}" > credentials.json
+
+      - name: Create creds.txt from secret
+        run: echo "${{ secrets.GDRIVE_CREDS_TXT }}" > creds.txt
+        
+      - name: Run the Python Scraper Script
+        # This takes the inputs from the API call and passes them to the script
+        run: python scraper.py "${{ github.event.inputs.company_code }}" "${{ github.event.inputs.start_date }}"
